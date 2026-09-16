@@ -111,6 +111,19 @@ def test_ollama_address_is_editable(client):
     assert back["ollama_host"] == credentials.DEFAULT_OLLAMA_HOST
 
 
+def test_single_container_serves_the_ui_on_the_host_port():
+    """One-container hosts route one port: the web UI takes it, the
+    backend stays inside."""
+    from src.vervemint import serve
+
+    commands = serve.commands("1337")
+    assert "--port=1337" in " ".join(commands["ui"]).replace(
+        "--server.port=", "--port=")
+    assert "--server.address=0.0.0.0" in commands["ui"]
+    api = " ".join(commands["api"])
+    assert "--host 127.0.0.1" in api and f"--port {serve.API_PORT}" in api
+
+
 def test_backend_starts_the_telegram_bot(monkeypatch):
     """Starting the backend starts the bot: no second process to run."""
     started = []

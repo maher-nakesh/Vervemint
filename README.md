@@ -86,6 +86,16 @@ Web app on <http://localhost:8501>, API on <http://localhost:8000>. No `.env` fi
 - **Back up** the `vervemint-data` volume: it holds your settings, uploaded documents and work orders.
 - **Update:** `git pull && docker compose up -d --build`.
 
+### One-container hosts (Back4App, Render, Railway, Cloud Run)
+
+These run a single image and route one port to it:
+
+- **Start command:** `python -m src.vervemint.serve` — the web UI takes the platform's `$PORT`, the backend stays inside the container. The default command runs the backend alone, also on `$PORT`.
+- **Memory: at least 2 GB.** The retrieval models need about 1 GB before the first request. A 256–512 MB instance is killed while loading, and the platform then reports that nothing is listening on the port.
+- **Startup takes a minute** on a small CPU (loading two models). Give the health check a grace period.
+- **The search index is not in the image.** Without `data/index/` the app still runs, but only over documents you upload; add `COPY data/index ./data/index` to the Dockerfile or attach a volume to get the built-in library.
+- **Settings do not survive a deploy** where the filesystem is ephemeral, since `data/credentials.json` lives there. Set those values as environment variables instead (`GEMINI_API_KEY`, `VERVEMINT_TELEGRAM_BOT_TOKEN`, `VERVEMINT_TELEGRAM_ALLOWED_USERS`, `VERVEMINT_API_TOKEN`); they override Settings and survive restarts.
+
 ## Settings, configuration and secrets
 
 | Where | What | Notes |

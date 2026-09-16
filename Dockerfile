@@ -65,7 +65,11 @@ RUN mkdir -p data logs && chown app:app data logs
 USER app
 EXPOSE 8000 8501
 
-# The API by default. One worker: every extra worker loads its own copy
-# of the models. Our middleware writes the access log, so uvicorn's is off.
-CMD ["uvicorn", "src.vervemint.api:app", "--host", "0.0.0.0", "--port", "8000", \
-     "--workers", "1", "--no-access-log", "--timeout-graceful-shutdown", "30"]
+# The API by default, on $PORT when the host assigns one (8000 otherwise).
+# One worker: every extra worker loads its own copy of the models. Our
+# middleware writes the access log, so uvicorn's is off.
+# Single-container hosts that should serve the web UI as well:
+#   command: python -m src.vervemint.serve
+CMD ["sh", "-c", "exec uvicorn src.vervemint.api:app --host 0.0.0.0 \
+--port ${PORT:-8000} --workers 1 --no-access-log \
+--timeout-graceful-shutdown 30"]
