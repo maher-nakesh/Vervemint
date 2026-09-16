@@ -1,0 +1,133 @@
+# Vervemint -- AI that mint-answers from your docs. Production stack.
+#
+#   docker compose up -d --build
+#
+# Nothing to prepare: no .env is needed. On the first start the API
+# generates the API token and the web UI password:
+#   docker compose logs api | grep password
+# Open the web UI, log in, and add the LLM API keys and the Telegram bot
+# in Settings. They are saved in the shared data volume
+# (data/credentials.json), so every service sees a change at once.
+#
+# Services:
+#   api     FastAPI backend: models, documents, LLM calls. It also runs the
+#           Telegram bot, which waits for a token saved in Settings.
+#   ui      web UI (Chat + Settings), behind its password
+#   caddy   HTTPS on your own domain       (profile: proxy)
+#   ollama  local LLM server               (profile: ollama)
+# Turn profiles on in .env (see .env.example), e.g. COMPOSE_PROFILES=proxy
+#
+# Ports 8000 and 8501 are published on 127.0.0.1. If something else on this
+# machine already uses one (e.g. `streamlit run ui/app.py`), stop it or set
+# API_PORT / UI_PORT in .env.
+
+name: vervemint
+
+x-app: &app
+  image: vervemint:latest
+  build: .
+  restart: unless-stopped
+  init: true                      # forwards signals, reaps child processes
+  read_only: true                 # only the volumes and tmpfs are writable
+  tmpfs:
+    - /tmp
+    - /home/app:uid=10001,gid=10001,mode=0700   # the app user's home
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  # Optional: a secret in .env (e.g. from a secrets manager) wins over
+  # Settings and locks that field there. Nothing in it is required.
+  env_file:
+    - path: .env
+      required: false
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "5"}
+
+services:
+  api:
+    <<: *app
+    volumes:
+      - vervemint-data:/app/data          # credentials, documents, orders
+      - vervemint-logs:/app/logs          # vervemint.log, llm.log, traces
+      - ./config.yaml:/app/config.yaml:ro
+      # Prebuilt library index (python -m src.vervemint.index), read-only.
+      - ./data/index:/app/data/index:ro
+    environment:
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"   # this host only: debugging, /docs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 180s            # loading models and the index
+      retries: 3
+    stop_grace_period: 60s          # let in-flight LLM answers finish
+    deploy:
+      resources:
+        limits: {memory: 6g}
+
+  ui:
+    <<: *app
+    command: [streamlit, run, ui/app.py, --server.address=0.0.0.0,
+              --server.port=8501, --server.headless=true]
+    volumes:
+      - vervemint-data:/app/data:ro       # reads the API token
+      - vervemint-logs:/app/logs
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      VERVEMINT_API_URL: http://api:8000
+      # No login by default. Publishing the UI on the internet? Turn it on
+      # here and use the password from Settings:
+      #   VERVEMINT_UI_REQUIRE_PASSWORD: "true"
+    ports:
+      - "127.0.0.1:${UI_PORT:-8501}:8501"    # public access goes through Caddy
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    deploy:
+      resources:
+        limits: {memory: 1g}
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: [proxy]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data            # TLS certificates: keep this volume
+      - caddy-config:/config
+    # Not ":?": Compose checks required variables even for profiles that
+    # are off. Without DOMAIN, Caddy stops with a Caddyfile error.
+    environment:
+      DOMAIN: ${DOMAIN:-}
+    depends_on: [ui]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+
+  ollama:
+    image: ollama/ollama:0.32.14
+    profiles: [ollama]
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+
+volumes:
+  vervemint-data:
+  vervemint-logs:
+  caddy-data:
+  caddy-config:
+  ollama-models:

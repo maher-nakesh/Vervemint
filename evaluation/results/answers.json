@@ -1,0 +1,755 @@
+{
+  "provider": "ollama",
+  "model": "qwen2.5-7b-gpu:latest",
+  "n_questions": 50,
+  "accuracy": {
+    "closed_book": 0.26,
+    "rag": 0.32
+  },
+  "rows": [
+    {
+      "id": 804,
+      "gold": [
+        "B"
+      ],
+      "closed_book": [
+        "B"
+      ],
+      "rag": [
+        "B"
+      ]
+    },
+    {
+      "id": 134,
+      "gold": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "closed_book": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "rag": [
+        "A",
+        "B",
+        "D",
+        "E"
+      ]
+    },
+    {
+      "id": 31,
+      "gold": [
+        "C"
+      ],
+      "closed_book": [
+        "B",
+        "E"
+      ],
+      "rag": [
+        "A",
+        "C",
+        "D",
+        "E"
+      ]
+    },
+    {
+      "id": 935,
+      "gold": [
+        "A",
+        "C",
+        "E"
+      ],
+      "closed_book": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "rag": [
+        "C"
+      ]
+    },
+    {
+      "id": 356,
+      "gold": [
+        "D"
+      ],
+      "closed_book": [
+        "B",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    },
+    {
+      "id": 315,
+      "gold": [
+        "D"
+      ],
+      "closed_book": [
+        "B",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    },
+    {
+      "id": 286,
+      "gold": [
+        "B",
+        "D"
+      ],
+      "closed_book": [
+        "B",
+        "D"
+      ],
+      "rag": [
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": 172,
+      "gold": [
+        "E"
+      ],
+      "closed_book": [
+        "B",
+        "E"
+      ],
+      "rag": [
+        "B",
+        "E"
+      ]
+    },
+    {
+      "id": 928,
+      "gold": [
+        "B"
+      ],
+      "closed_book": [
+        "B"
+      ],
+      "rag": [
+        "B"
+      ]
+    },
+    {
+      "id": 123,
+      "gold": [
+        "B",
+        "D",
+        "E"
+      ],
+      "closed_book": [
+        "B",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    },
+    {
+      "id": 856,
+      "gold": [
+        "C"
+      ],
+      "closed_book": [
+        "C",
+        "D"
+      ],
+      "rag": [
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": 934,
+      "gold": [
+        "A",
+        "B",
+        "C"
+      ],
+      "closed_book": [
+        "D",
+        "E"
+      ],
+      "rag": [
+        "D",
+        "E"
+      ]
+    },
+    {
+      "id": 694,
+      "gold": [
+        "E"
+      ],
+      "closed_book": [
+        "D",
+        "E"
+      ],
+      "rag": [
+        "D",
+        "E"
+      ]
+    },
+    {
+      "id": 105,
+      "gold": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "closed_book": [
+        "C",
+        "D",
+        "E"
+      ],
+      "rag": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ]
+    },
+    {
+      "id": 743,
+      "gold": [
+        "A"
+      ],
+      "closed_book": [
+        "D",
+        "E"
+      ],
+      "rag": [
+        "A",
+        "C"
+      ]
+    },
+    {
+      "id": 539,
+      "gold": [
+        "C",
+        "D",
+        "E"
+      ],
+      "closed_book": [
+        "C",
+        "E"
+      ],
+      "rag": [
+        "C",
+        "E"
+      ]
+    },
+    {
+      "id": 38,
+      "gold": [
+        "C"
+      ],
+      "closed_book": [
+        "C"
+      ],
+      "rag": [
+        "C"
+      ]
+    },
+    {
+      "id": 36,
+      "gold": [
+        "A"
+      ],
+      "closed_book": [
+        "A"
+      ],
+      "rag": [
+        "A",
+        "D"
+      ]
+    },
+    {
+      "id": 111,
+      "gold": [
+        "D",
+        "E"
+      ],
+      "closed_book": [],
+      "rag": []
+    },
+    {
+      "id": 281,
+      "gold": [
+        "D"
+      ],
+      "closed_book": [
+        "A",
+        "B",
+        "C"
+      ],
+      "rag": [
+        "A",
+        "E"
+      ]
+    },
+    {
+      "id": 299,
+      "gold": [
+        "B",
+        "C",
+        "D"
+      ],
+      "closed_book": [
+        "D",
+        "E"
+      ],
+      "rag": [
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": 644,
+      "gold": [
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "closed_book": [
+        "B",
+        "C",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "C"
+      ]
+    },
+    {
+      "id": 758,
+      "gold": [
+        "B"
+      ],
+      "closed_book": [
+        "B",
+        "C",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    },
+    {
+      "id": 33,
+      "gold": [
+        "B"
+      ],
+      "closed_book": [
+        "B"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    },
+    {
+      "id": 713,
+      "gold": [
+        "D"
+      ],
+      "closed_book": [
+        "D",
+        "E"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    },
+    {
+      "id": 250,
+      "gold": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "closed_book": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "rag": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ]
+    },
+    {
+      "id": 904,
+      "gold": [
+        "B",
+        "D"
+      ],
+      "closed_book": [
+        "A",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "E"
+      ]
+    },
+    {
+      "id": 819,
+      "gold": [
+        "A"
+      ],
+      "closed_book": [
+        "B",
+        "C"
+      ],
+      "rag": [
+        "A"
+      ]
+    },
+    {
+      "id": 888,
+      "gold": [
+        "B"
+      ],
+      "closed_book": [
+        "B",
+        "E"
+      ],
+      "rag": [
+        "B"
+      ]
+    },
+    {
+      "id": 536,
+      "gold": [
+        "D"
+      ],
+      "closed_book": [
+        "B",
+        "C",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    },
+    {
+      "id": 283,
+      "gold": [
+        "C"
+      ],
+      "closed_book": [
+        "C"
+      ],
+      "rag": [
+        "C"
+      ]
+    },
+    {
+      "id": 573,
+      "gold": [
+        "C"
+      ],
+      "closed_book": [
+        "C",
+        "D"
+      ],
+      "rag": [
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": 742,
+      "gold": [
+        "C"
+      ],
+      "closed_book": [
+        "B"
+      ],
+      "rag": [
+        "E"
+      ]
+    },
+    {
+      "id": 361,
+      "gold": [
+        "E"
+      ],
+      "closed_book": [
+        "D",
+        "E"
+      ],
+      "rag": [
+        "D"
+      ]
+    },
+    {
+      "id": 7,
+      "gold": [
+        "B"
+      ],
+      "closed_book": [
+        "B"
+      ],
+      "rag": [
+        "D",
+        "E"
+      ]
+    },
+    {
+      "id": 957,
+      "gold": [
+        "B",
+        "D"
+      ],
+      "closed_book": [
+        "B",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    },
+    {
+      "id": 198,
+      "gold": [
+        "B"
+      ],
+      "closed_book": [
+        "B",
+        "E"
+      ],
+      "rag": [
+        "B"
+      ]
+    },
+    {
+      "id": 884,
+      "gold": [
+        "D"
+      ],
+      "closed_book": [
+        "B",
+        "D"
+      ],
+      "rag": [
+        "E"
+      ]
+    },
+    {
+      "id": 437,
+      "gold": [
+        "A"
+      ],
+      "closed_book": [
+        "A",
+        "C"
+      ],
+      "rag": [
+        "A"
+      ]
+    },
+    {
+      "id": 193,
+      "gold": [
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "closed_book": [],
+      "rag": [
+        "B"
+      ]
+    },
+    {
+      "id": 275,
+      "gold": [
+        "E"
+      ],
+      "closed_book": [
+        "A",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "C"
+      ]
+    },
+    {
+      "id": 961,
+      "gold": [
+        "A",
+        "B",
+        "C"
+      ],
+      "closed_book": [
+        "A",
+        "B"
+      ],
+      "rag": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "id": 433,
+      "gold": [
+        "C"
+      ],
+      "closed_book": [
+        "B",
+        "C"
+      ],
+      "rag": [
+        "B",
+        "C"
+      ]
+    },
+    {
+      "id": 110,
+      "gold": [
+        "B",
+        "D"
+      ],
+      "closed_book": [
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    },
+    {
+      "id": 482,
+      "gold": [
+        "C"
+      ],
+      "closed_book": [
+        "C",
+        "D"
+      ],
+      "rag": [
+        "C",
+        "D"
+      ]
+    },
+    {
+      "id": 117,
+      "gold": [
+        "B"
+      ],
+      "closed_book": [
+        "B"
+      ],
+      "rag": [
+        "B"
+      ]
+    },
+    {
+      "id": 458,
+      "gold": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "closed_book": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "rag": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ]
+    },
+    {
+      "id": 441,
+      "gold": [
+        "A"
+      ],
+      "closed_book": [
+        "D",
+        "E"
+      ],
+      "rag": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    {
+      "id": 760,
+      "gold": [
+        "D",
+        "E"
+      ],
+      "closed_book": [
+        "B",
+        "D",
+        "E"
+      ],
+      "rag": [
+        "D",
+        "E"
+      ]
+    },
+    {
+      "id": 340,
+      "gold": [
+        "C",
+        "D"
+      ],
+      "closed_book": [
+        "B",
+        "D"
+      ],
+      "rag": [
+        "B",
+        "D"
+      ]
+    }
+  ]
+}

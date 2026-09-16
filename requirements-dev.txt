@@ -1,0 +1,5 @@
+# Everything the app needs, plus the test and lint tools.
+# The production image installs only requirements.txt.
+-r requirements.txt
+pytest==9.1.0
+ruff==0.15.5

@@ -1,0 +1,14 @@
+# DEMO LOG (synthetic, for testing) - Cold room CR-2 refrigeration unit
+# Equipment: Panasonic compressor model DJK51C73RAU, R134a, 115V 60Hz
+2026-09-10 13:00:00 INFO  Supply voltage 116 V, compressor current 0.98 A, shell temp 64 C
+2026-09-10 13:30:00 INFO  Supply voltage 115 V, compressor current 1.01 A, shell temp 66 C
+2026-09-10 14:00:00 INFO  Site switched to backup generator for scheduled test
+2026-09-10 14:20:00 WARN  Supply voltage 99 V
+2026-09-10 14:25:12 WARN  Compressor current 2.31 A, shell temp 98 C and rising
+2026-09-10 14:31:40 ERROR Motor protector OPEN - compressor stopped, shell temp 112 C
+2026-09-10 15:02:10 INFO  Motor protector closed at shell temp 60 C - compressor restarted
+2026-09-10 15:05:00 WARN  Supply voltage 100 V
+2026-09-10 15:09:55 ERROR Motor protector OPEN again - compressor stopped, shell temp 111 C
+2026-09-10 15:10:30 WARN  Cold room temperature rising: -12 C (setpoint -18 C)
+2026-09-10 15:12:00 INFO  Technician note: small oil stain under the compressor, oil top-up planned
+2026-09-10 15:12:01 INFO  Technician note: which oil is approved for this compressor?

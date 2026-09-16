@@ -1,0 +1,29 @@
+# NVIDIA GPU for the API's retrieval models and for Ollama.
+# Needs the NVIDIA driver and the NVIDIA Container Toolkit on the host.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+
+x-gpu-image: &gpu-image
+  image: vervemint:gpu
+  build:
+    context: .
+    args:
+      TORCH_INDEX_URL: https://download.pytorch.org/whl/cu126
+
+services:
+  api:
+    <<: *gpu-image
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - {driver: nvidia, count: all, capabilities: [gpu]}
+
+  ui: *gpu-image
+
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - {driver: nvidia, count: all, capabilities: [gpu]}

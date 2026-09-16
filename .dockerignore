@@ -1,0 +1,30 @@
+# Only what the image needs: src/, ui/, config.yaml, .streamlit/ and
+# requirements.txt. Data, logs and secrets never enter the build context.
+.git
+.gitignore
+.venv
+venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+.serena
+.claude
+.vscode
+.idea
+
+.env
+.env.*
+
+data/
+logs/
+evaluation/
+tests/
+deploy/
+docs/
+NUL
+
+Dockerfile
+docker-compose*.yml
+*.md
+requirements-dev.txt

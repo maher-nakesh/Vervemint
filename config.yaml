@@ -1,0 +1,50 @@
+# --- Paths (relative to the project root) ------------------------------
+data_dir: data
+corpus_dir: data/industrial-instruction-dataset/panasonic_v0_0
+qa_dir: data/industrial-instruction-dataset/panasonic_qa_v1
+index_dir: data/index          # rebuild with: python -m src.vervemint.index
+documents_dir: data/documents  # uploaded files, processed once and reused
+log_dir: logs
+
+# --- Logging -------------------------------------------------------------
+log_level: INFO                # DEBUG | INFO | WARNING | ERROR
+log_llm_messages: true         # full prompts + replies -> logs/llm.log
+
+# --- Chunking (changing these requires rebuilding the index) ------------
+max_chunk_chars: 1200
+chunk_overlap_chars: 150       # must be smaller than max_chunk_chars
+
+# --- Retrieval -------------------------------------------------------------
+embedding_model: BAAI/bge-small-en-v1.5   # changing it requires a rebuild
+reranker_model: BAAI/bge-reranker-base
+bm25_top_k: 20                 # keyword candidates
+dense_top_k: 20                # embedding candidates
+rerank_top_k: 5                # passages sent to the LLM
+rrf_k: 60                      # Reciprocal Rank Fusion constant
+
+# --- LLM providers ----------------------------------------------------------
+# Default model per provider, until one is picked on the Chat page. API keys
+# are not configured here: add them in the web UI's Settings page.
+ollama_model: qwen2.5-7b-gpu:latest
+ollama_temperature: 0.0        # 0 = repeatable answers; Ollama only
+ollama_num_ctx: 8192           # context window; bigger uses more GPU memory
+claude_model: claude-opus-5
+openai_model: gpt-5-mini
+gemini_model: gemini-3.8-flash
+gemini_thinking_level: low     # minimal | low | medium | high
+gemini_timeout_s: 60           # per attempt; a timed-out attempt is retried
+
+# --- Generation / guardrails / agent ---------------------------------------
+min_rerank_score: 0.15         # 0-1; below this the assistant abstains
+max_query_chars: 1000          # longer questions are blocked
+max_agent_steps: 6             # tool-calling rounds before the agent stops
+max_log_chars: 12000           # how much of an attached log the agent reads
+
+# --- API server and front ends ----------------------------------------------
+api_url: http://127.0.0.1:8000  # where the web UI and the Telegram bot find the API
+max_upload_mb: 50              # per uploaded file
+request_timeout_s: 300         # how long the UI waits for an answer
+ui_require_password: false     # true = ask for the password from Settings (public sites)
+telegram_bot: true             # run the Telegram bot with the backend
+# Credentials (API keys, the Telegram bot, the web UI password, the API
+# token) are set in the web UI's Settings page, not here.

@@ -1,0 +1,10 @@
+# DEMO LOG (synthetic, for testing) - Conveyor line 3 drive
+# Equipment: 55 kW electric motor, asset M-12
+# Tip: upload data/machine_manual.txt as a document, or ask in agent mode.
+2026-09-11 08:00:00 INFO  M-12 start, winding temp 41 C, cooling fan 1450 rpm
+2026-09-11 10:00:00 INFO  M-12 winding temp 68 C, cooling fan 1450 rpm
+2026-09-11 11:42:17 WARN  M-12 cooling fan speed dropped to 0 rpm
+2026-09-11 11:50:00 WARN  M-12 winding temp 84 C
+2026-09-11 12:10:00 ERROR M-12 winding temp 96 C, above limit 90 C
+2026-09-11 12:10:05 WARN  Ventilation filter differential pressure high (filter 80% blocked)
+2026-09-11 12:11:00 INFO  Operator note: motor housing very hot, no airflow at the fan cover

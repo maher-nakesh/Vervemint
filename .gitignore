@@ -32,3 +32,14 @@ data/industrial-instruction-dataset/
 data/index/
 .cache/
 *.parquet
+
+# Runtime output (logs and traces contain user questions)
+logs/
+data/work_orders.jsonl
+data/documents/
+data/telegram_bot.pickle
+data/telegram_status.json*
+
+# Credentials saved from the web UI's Settings page (API keys, bot token,
+# passwords): never commit
+data/credentials.json*

@@ -1,0 +1,18 @@
+# DEMO LOG (synthetic, for testing) - Assembly line 3, machine guarding
+# Equipment: Panasonic SF4D series safety light curtain, 3 units in series connection
+2026-09-12 06:58:02 INFO  SF4D unit1 (receiver) power on, self-test OK
+2026-09-12 06:58:02 INFO  SF4D unit2 (receiver) power on, self-test OK
+2026-09-12 06:58:03 INFO  SF4D unit3 (receiver) power on, self-test OK
+2026-09-12 06:58:04 INFO  Series connection: 3 sensors, 120 beam channels in total
+2026-09-12 06:58:05 INFO  Control output OSSD 1 / OSSD 2: ON, machine ready
+2026-09-12 07:14:37 INFO  Maintenance: unit3 replaced with a spare from stores
+2026-09-12 07:14:38 INFO  Maintenance note: DIP switch settings of the spare were not checked
+2026-09-12 07:15:10 WARN  unit3 DIP switch 1/2 (synchronization method) differs from unit1 and unit2
+2026-09-12 07:15:11 ERROR Digital indicator on unit3: error number blinking
+2026-09-12 07:15:11 ERROR Series connection error reported by unit1
+2026-09-12 07:15:11 ERROR Control output OSSD 1 / OSSD 2 OFF - machine stopped
+2026-09-12 07:16:40 INFO  Operator reset attempted
+2026-09-12 07:16:41 ERROR Series connection error persists after reset
+2026-09-12 07:18:05 INFO  Check: end cap on unit3 installed = YES
+2026-09-12 07:18:06 INFO  Check: series connection cable unit2 -> unit3 connected = YES
+2026-09-12 07:18:30 WARN  Line 3 stopped for 4 minutes, production waiting
