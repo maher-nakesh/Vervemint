@@ -1,10 +1,7 @@
-# Vervemint
+# Vervemint - AI that mint-answers from your docs
 
-**AI that mint-answers from your docs.**
 
-Ask about your technical documents and get answers with page-level citations — in a web app or on Telegram. Vervemint says "not in the documents" instead of guessing, diagnoses machine logs against the manuals, and drafts maintenance work orders that a human approves.
-
-> The documents are real Panasonic industrial manuals. Machine telemetry is simulated demo data.
+Ask about your technical documents and get answers with page-level citations — in a web app or on Telegram. 
 
 ## What it does
 
@@ -19,7 +16,7 @@ Ask about your technical documents and get answers with page-level citations —
 ## Quick start
 
 ```bash
-git clone <repository-url> vervemint
+git clone https://github.com/maher-nakesh/Vervemint.git vervemint
 cd vervemint
 
 python -m venv .venv
@@ -41,25 +38,8 @@ python -m uvicorn src.vervemint.api:app --host 127.0.0.1 --port 8000   # backend
 python -m streamlit run ui/app.py                                      # web app
 ```
 
-Open **<http://localhost:8501>** and ask a question. Nothing else to configure: there are no keys or config files to edit first. For Gemini, Claude or OpenAI, paste a key in **Settings → Providers**.
 
-## Using the app
 
-**Sidebar** — the menu (**Chat** / **Settings**) and the controls:
-
-- **Provider and model.** A badge shows *Connected* or the reason it is not. The choice is saved for the Telegram bot and your next visit too.
-- **Documents.** The built-in manual library, or *My documents* (your uploads).
-- **Mode.** *Ask the documents*, or the *Maintenance agent* — try "Check pump P-07 and draft a work order if needed" (demo assets: P-07 alarm, M-12 warning, F-03 ok).
-
-**Chat** — type a question, or click the paperclip to attach a machine log (samples in `data/demo_logs/`). Answers cite sources as [1], [2]; click a source title to read the passage the answer came from.
-
-**Settings** — everything the app needs to run, in one place:
-
-- **Providers.** API keys for Gemini, Claude and OpenAI (tested when you save), and the Ollama address.
-- **Telegram bot.** The bot token and who may use it, with a *Connected* / *Disconnected* badge.
-- **Access.** The API token for other clients, and an optional web UI password.
-
-Turn on **Show saved values** to read or edit anything already stored.
 
 ## Telegram bot
 
@@ -77,24 +57,7 @@ Only allowed users can use it, in private chats only. Clearing the token disconn
 docker compose up -d --build
 ```
 
-Web app on <http://localhost:8501>, API on <http://localhost:8000>. No `.env` file is needed, and no password is asked for.
 
-- **Port already in use?** Stop your local `uvicorn` / `streamlit` first, or set `API_PORT` / `UI_PORT` in `.env`. Run the app locally **or** in Docker — each keeps its own settings and documents.
-- **The search index** (`data/index/`, built by `python -m src.vervemint.index`) is mounted from this folder rather than baked into the image. Deploying to a server: copy it next to `docker-compose.yml`.
-- **Options** (`.env`, see `.env.example`): `COMPOSE_PROFILES=proxy` adds HTTPS on your `DOMAIN` via Caddy; `ollama` adds a local model container. GPU: add `-f docker-compose.gpu.yml`.
-- **On a public address,** set `VERVEMINT_UI_REQUIRE_PASSWORD=true` for the `ui` service; the password is in Settings → Access.
-- **Back up** the `vervemint-data` volume: it holds your settings, uploaded documents and work orders.
-- **Update:** `git pull && docker compose up -d --build`.
-
-### One-container hosts (Back4App, Render, Railway, Cloud Run)
-
-These run a single image and route one port to it:
-
-- **Start command:** `python -m src.vervemint.serve` — the web UI takes the platform's `$PORT`, the backend stays inside the container. The default command runs the backend alone, also on `$PORT`.
-- **Memory: at least 2 GB.** The retrieval models need about 1 GB before the first request. A 256–512 MB instance is killed while loading, and the platform then reports that nothing is listening on the port.
-- **Startup takes a minute** on a small CPU (loading two models). Give the health check a grace period.
-- **The search index is not in the image.** Without `data/index/` the app still runs, but only over documents you upload; add `COPY data/index ./data/index` to the Dockerfile or attach a volume to get the built-in library.
-- **Settings do not survive a deploy** where the filesystem is ephemeral, since `data/credentials.json` lives there. Set those values as environment variables instead (`GEMINI_API_KEY`, `VERVEMINT_TELEGRAM_BOT_TOKEN`, `VERVEMINT_TELEGRAM_ALLOWED_USERS`, `VERVEMINT_API_TOKEN`); they override Settings and survive restarts.
 
 ## Settings, configuration and secrets
 
@@ -116,26 +79,9 @@ curl -X POST http://127.0.0.1:8000/ask -H "Authorization: Bearer $TOKEN" \
   -d '{"question": "What communication protocol do digital air pressure sensors use?"}'
 ```
 
-Interactive docs: <http://127.0.0.1:8000/docs>. Endpoints: `GET /health` (public), `POST /ask`, `POST /agent`, `POST /analyze-log`, `POST /connect`, `GET|POST /documents`, `DELETE /documents/{id}`, `GET|PUT /settings`, `GET /telegram/status`, `POST /work-orders`, `GET /stats`. Everything except `/health` needs the token. Leave out `provider` / `model` to use the ones chosen in the sidebar.
+Interactive docs: 
+<http://127.0.0.1:8000/docs>. Endpoints: `GET /health` (public), `POST /ask`, `POST /agent`, `POST /analyze-log`, `POST /connect`, `GET|POST /documents`, `DELETE /documents/{id}`, `GET|PUT /settings`, `GET /telegram/status`, `POST /work-orders`, `GET /stats`. Everything except `/health` needs the token. Leave out `provider` / `model` to use the ones chosen in the sidebar.
 
-## How it works
-
-```text
-Web app (Chat · Settings)   Telegram bot          ← thin clients, no models
-                    │  HTTP + token
-FastAPI backend: guardrails → retrieval → grounded answer
-                    │
-   BM25 ─┐                                  Agent tools (the code runs them):
-   Dense ┴─ RRF ─ cross-encoder rerank      machine health · search manuals ·
-   abstain if weak · citations checked      draft work order (human approves)
-                    │
-   Ollama (local) · Gemini · Claude · OpenAI
-```
-
-- No LangChain or vector-DB server: 23,737 chunks in an exact FAISS index on disk, plus BM25 for part numbers.
-- One backend, thin clients: the web app and the bot hold no models, so they start instantly.
-- Work done once: the index rebuilds only when the documents or chunking settings change, and an uploaded file is processed once and reused.
-- Every chunk carries its page title, so a table row like "Approved oils: …" still matches the right product.
 
 ## Evaluation
 
@@ -148,9 +94,6 @@ FastAPI backend: guardrails → retrieval → grounded answer
 | Hybrid (BM25 + dense, RRF) | 0.384 | 0.717 | 0.540 |
 | Hybrid + rerank (used by the app) | 0.447 | **0.837** | **0.605** |
 
-Adding the page title to each chunk lifted Hit@5 from 0.723 to 0.837 — before it, "Approved oils: FREOL alpha10" could not be matched to its compressor model at all.
-
-**Answers** — 50 multiple-choice questions, local `qwen2.5` 7B: 0.26 closed-book vs 0.32 with retrieval. A small positive signal, not a significant result.
 
 ```bash
 python -m evaluation.eval_retrieval        # retrieval metrics, no LLM calls
@@ -176,15 +119,6 @@ API keys and bot tokens never reach the logs. Questions and document text do, so
 - **Secrets are stored as readable JSON** on the server so the app can use them — protect the data volume, or inject them from a secrets manager.
 - **Guardrails are pattern-based**: they catch obvious prompt injection, not paraphrased attempts.
 
-## Project layout
-
-```text
-src/vervemint/    backend: ingest · index · retrieve · generate · agent · api · credentials
-ui/               web app (app.py) and Telegram bot (telegram_bot.py), both API clients
-evaluation/       benchmark builders and metric scripts
-tests/            pytest suite, no LLM calls needed
-config.yaml       app settings · docker-compose.yml, Dockerfile, deploy/Caddyfile
-```
 
 ## Models
 

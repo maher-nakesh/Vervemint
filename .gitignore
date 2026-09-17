@@ -14,6 +14,9 @@ env/
 .env
 .env.local
 
+# Local tools (cloudflared for public tunnels)
+.tools/
+
 # IDE
 .vscode/
 .idea/
@@ -26,6 +29,12 @@ Thumbs.db
 
 # Claude
 .claude/
+
+.serena
+.streamlit
+.deploy
+.test
+
 
 # Large data files
 data/industrial-instruction-dataset/
@@ -43,3 +52,4 @@ data/telegram_status.json*
 # Credentials saved from the web UI's Settings page (API keys, bot token,
 # passwords): never commit
 data/credentials.json*
+

@@ -55,6 +55,7 @@ MODE_AGENT = "Maintenance agent (tools)"
 LOG_TYPES = ["txt", "log", "csv"]
 LOG_QUESTION = ("Analyse the attached log: what is wrong, and how do I fix "
                 "it according to the manuals?")
+RECHECK_AFTER_S = 30  # how long a failed connection check is remembered
 _pages: dict[str, st.Page] = {}
 
 
@@ -146,6 +147,27 @@ def _on_model(provider: str) -> None:
         save_settings({"models": {provider: model}})
 
 
+def _remembered_check(check_key: tuple) -> dict | None:
+    """The connection check from earlier in this session. A failure older
+    than RECHECK_AFTER_S is dropped: the server it could not reach (a
+    stopped Ollama, a provider outage) may be back."""
+    remembered = st.session_state.checks.get(check_key)
+    if remembered is None:
+        return None
+    result, checked_at = remembered
+    if not result["ok"] and time.time() - checked_at > RECHECK_AFTER_S:
+        return None
+    return result
+
+
+def _check_again(bar) -> None:
+    """Check now instead of waiting, after starting Ollama or saving a key."""
+    if bar.button("Check again", icon=":material/refresh:", width="stretch"):
+        ollama_models.clear()  # the model list is cached for 30 s
+        st.session_state.checks.clear()
+        st.rerun()
+
+
 def model_picker(conf: dict) -> dict | None:
     """Provider, model and a small connection badge, in the sidebar. The
     choice is saved on the server, so the Telegram bot follows it.
@@ -165,11 +187,13 @@ def model_picker(conf: dict) -> dict | None:
         except ApiError as exc:
             bar.badge("Not connected", icon=":material/error:", color="red")
             bar.caption(str(exc))
+            _check_again(bar)  # e.g. after starting `ollama serve`
             return None
         if not models:
             bar.badge("No models", icon=":material/error:", color="red")
             bar.caption(f"{conf['ollama_host']} has no models. Pull one, "
                         "e.g. `ollama pull qwen2.5:7b`.")
+            _check_again(bar)
             return None
         if model not in models:
             # Use a model that exists, and save it so the bot uses it too.
@@ -190,25 +214,25 @@ def model_picker(conf: dict) -> dict | None:
                        args=(provider,), label_visibility="collapsed",
                        placeholder="Model name", help="Press Enter to save.")
 
-    # One free check per provider / model / key per browser session.
+    # One free check per provider / model / key, kept for this browser
+    # session; a failed one is retried so the app recovers by itself once
+    # the provider is back.
     key = conf["keys"].get(provider, {}).get("value", "")
     check_key = (provider, model, key[-6:])
-    result = st.session_state.checks.get(check_key)
+    result = _remembered_check(check_key)
     if result is None:
         with bar, st.spinner("Checking..."):
             try:
                 result = get_client().connect(provider, model)
             except ApiError as exc:
                 result = {"ok": False, "message": str(exc)}
-        st.session_state.checks[check_key] = result
+        st.session_state.checks[check_key] = (result, time.time())
     if result["ok"]:
         bar.badge("Connected", icon=":material/check:", color="green")
         return {"provider": provider, "model": model, "key": None}
     bar.badge("Not connected", icon=":material/error:", color="red")
     bar.caption(result["message"])
-    if bar.button("Retry", icon=":material/refresh:", width="stretch"):
-        st.session_state.checks.pop(check_key, None)
-        st.rerun()
+    _check_again(bar)
     return None
 
 
