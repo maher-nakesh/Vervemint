@@ -68,20 +68,33 @@ def path() -> Path:
 
 
 def write_atomic(file: Path, text: str, mode: int = 0o600) -> None:
-    """Readers see the old file or the new one, never half of it."""
+    """Readers see the old file or the new one, never half of it.
+
+    The temp file name includes the pid and a random suffix, so two
+    writers -- two threads, or two processes, e.g. an old and a new API
+    instance during a restart -- never share one temp file. Without that,
+    one writer's os.replace() can remove the temp file a second writer
+    is about to rename, which raised FileNotFoundError here before.
+    Whichever writer finishes last simply wins, as before.
+    """
     file.parent.mkdir(parents=True, exist_ok=True)
-    tmp = file.with_name(file.name + ".tmp")
+    tmp = file.with_name(f"{file.name}.{os.getpid()}.{secrets.token_hex(4)}"
+                         ".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(text)
-    for attempt in range(20):
-        try:
-            os.replace(tmp, file)
-            return
-        except PermissionError:  # Windows: a reader has the file open
-            if attempt == 19:
-                raise
-            time.sleep(0.05)
+    try:
+        for attempt in range(20):
+            try:
+                os.replace(tmp, file)
+                return
+            except PermissionError:  # Windows: a reader has the file open
+                if attempt == 19:
+                    raise
+                time.sleep(0.05)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def load() -> dict[str, Any]:

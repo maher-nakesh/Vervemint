@@ -4,6 +4,7 @@ partial updates -- files only, no server."""
 import json
 import os
 import stat
+import threading
 
 import pytest
 
@@ -104,3 +105,31 @@ def test_models_fall_back_to_the_configured_defaults():
     credentials.update({"models": {"ollama": "qwen2.5:7b"}})
     assert credentials.model_for("ollama") == "qwen2.5:7b"
     assert credentials.model_for("claude") == settings.claude_model
+
+
+def test_concurrent_writers_do_not_crash_each_other(store):
+    """Two processes writing the same file at once (e.g. an old and a new
+    API instance during a restart, or two bot_status.write() calls) must
+    not crash with FileNotFoundError: each writer's os.replace() used to
+    share one fixed temp-file name, so one writer's rename could delete
+    the temp file another was about to rename. write_atomic now gives
+    each call a unique temp name, so this is run for real, with no mocked
+    timing, and must never raise."""
+    errors: list[Exception] = []
+
+    def write(n: int) -> None:
+        try:
+            for _ in range(20):
+                credentials.write_atomic(store, json.dumps({"writer": n}))
+        except Exception as exc:  # noqa: BLE001 - captured, not raised here
+            errors.append(exc)
+
+    threads = [threading.Thread(target=write, args=(n,)) for n in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    assert errors == []
+    # Whichever writer finished last wins; the file is always complete.
+    assert "writer" in json.loads(store.read_text())
