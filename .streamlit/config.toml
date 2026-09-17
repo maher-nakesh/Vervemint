@@ -1,8 +1,0 @@
-# Only reachable from this machine. Remove this line to share the app on
-# your network (anyone who can reach it can use your Ollama and API keys).
-[server]
-address = "localhost"
-maxUploadSize = 50
-
-[browser]
-gatherUsageStats = false
