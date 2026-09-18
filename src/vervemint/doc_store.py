@@ -15,6 +15,8 @@ SHA-256 of the file's bytes:
   reprocessed from original.<ext> the next time it is used.
 - meta.json is written last, so an interrupted write is never mistaken
   for a finished document.
+- Renaming only rewrites the name in meta.json and in the chunks, so a
+  document keeps its vectors: nothing is embedded again.
 """
 
 import hashlib
@@ -30,7 +32,7 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 
 from src.vervemint.config import settings
-from src.vervemint.index import chunks_to_frame, embed_texts
+from src.vervemint.index import chunks_to_frame, clean_name, embed_texts
 from src.vervemint.ingest import CHUNKER_VERSION, chunks_from_upload
 
 logger = logging.getLogger(__name__)
@@ -115,6 +117,48 @@ def list_documents() -> list[dict]:
         if meta:
             metas.append(meta)
     return sorted(metas, key=lambda m: m["added_at"], reverse=True)
+
+
+def _clean_name(name: str, suffix: str) -> str:
+    """A name the user typed, with the document's own file type kept:
+    the suffix decides how the file is read if it is ever reprocessed."""
+    name = name.strip()
+    if suffix and name.lower().endswith(suffix.lower()):
+        name = name[: -len(suffix)]
+    return clean_name(name) + suffix
+
+
+def rename_document(doc_id: str, name: str) -> dict | None:
+    """Give a stored document another name, in its metadata and in its
+    chunks, so citations show the new name. The chunks and vectors stay
+    as they are: nothing is re-read, re-chunked or re-embedded.
+
+    Returns the new metadata, or None when the id is unknown. Raises
+    ValueError for an unusable name.
+    """
+    meta = _read_meta(doc_id)
+    if meta is None:
+        return None
+    old_name = meta["filename"]
+    new_name = _clean_name(name, Path(old_name).suffix)
+    if new_name == old_name:
+        return meta
+
+    folder = _folder(doc_id)
+    frame = pd.read_parquet(folder / "chunks.parquet")
+    # chunk_id is "<stem>_p<page>_c<i>" (ingest.py): swapping the stem
+    # gives exactly the ids a reprocessing under the new name would.
+    cut = len(Path(old_name).stem)
+    new_stem = Path(new_name).stem
+    frame["chunk_id"] = [new_stem + chunk_id[cut:]
+                         for chunk_id in frame["chunk_id"]]
+    frame["source"] = new_name
+    frame.to_parquet(folder / "chunks.parquet")
+    meta["filename"] = new_name
+    (folder / "meta.json").write_text(json.dumps(meta, indent=2),
+                                      encoding="utf-8")
+    logger.info("Document renamed | %s -> %s (%s)", old_name, new_name, doc_id)
+    return meta
 
 
 def delete_document(doc_id: str) -> bool:

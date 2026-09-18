@@ -48,8 +48,10 @@ PROVIDERS = {
     "claude": "Claude",
     "openai": "OpenAI",
 }
-KB_LIBRARY = "Built-in Panasonic manual library"
-KB_DOCUMENTS = "My documents"
+LIBRARY_ID = "library"   # the built-in index, in the same list
+# What the pen shows for one source: the two buttons, the name
+# box, or the delete question.
+EDIT_MENU, EDIT_RENAME, EDIT_DELETE = "menu", "rename", "delete"
 MODE_QA = "Ask the documents"
 MODE_AGENT = "Maintenance agent (tools)"
 LOG_TYPES = ["txt", "log", "csv"]
@@ -248,25 +250,180 @@ def _upload(client: ApiClient, files) -> None:
             return
     st.session_state.upload_report = report
     new_ids = [d["doc_id"] for d in report["documents"]]
-    st.session_state.selected_docs = list(
-        dict.fromkeys(st.session_state.get("selected_docs", []) + new_ids)
-    )
+    # Search what was just uploaded; the library is searched on its own.
+    kept = [s for s in st.session_state.get("selected_sources", [])
+            if s != LIBRARY_ID]
+    st.session_state.selected_sources = list(dict.fromkeys(kept + new_ids))
     st.session_state.uploader_round += 1  # empties the file picker
     st.rerun()
 
 
-def sidebar_documents(client: ApiClient, health: dict) -> dict | None:
-    """Returns the search scope for /ask and /agent, or None."""
-    st.sidebar.subheader("Documents")
-    options = [KB_DOCUMENTS]
-    if health["library"]["available"]:
-        options.insert(0, KB_LIBRARY)
-    choice = st.sidebar.radio("Search in", options)
-    if choice == KB_LIBRARY:
-        st.sidebar.caption(f"{health['library']['chunks']:,} passages from "
-                           "the Panasonic manuals")
-        return {"scope": "library", "document_ids": []}
+def _sources(client: ApiClient) -> list[dict]:
+    """Everything that is already chunked and embedded: the built-in
+    index (index.py) first, then the stored documents (doc_store.py),
+    newest first. Raises ApiError if the backend cannot be read."""
+    sources = []
+    library = client.library()
+    if library["available"]:
+        sources.append({"id": LIBRARY_ID, "kind": "index",
+                        "name": library["name"], "chunks": library["chunks"],
+                        "added_at": library["built_at"]})
+    sources += [{"id": d["doc_id"], "kind": "document",
+                 "name": d["filename"], "chunks": d["chunks"],
+                 "added_at": d["added_at"]} for d in client.documents()]
+    return sources
 
+
+def _on_pick(source_id: str) -> None:
+    """One scope per question: the built-in index is searched on its own,
+    so ticking it clears the documents, and ticking a document clears
+    it."""
+    chosen = list(st.session_state.selected_sources)
+    if not st.session_state[f"pick_{source_id}"]:
+        chosen = [s for s in chosen if s != source_id]
+    elif source_id == LIBRARY_ID:
+        chosen = [LIBRARY_ID]
+    else:
+        chosen = [s for s in chosen if s != LIBRARY_ID] + [source_id]
+    st.session_state.selected_sources = chosen
+
+
+def _open_editor(source_id: str | None, mode: str = EDIT_MENU) -> None:
+    st.session_state.editing = source_id
+    st.session_state.edit_mode = mode
+    if mode == EDIT_RENAME:
+        # A fresh name box, starting from the stored name again.
+        st.session_state.edit_round += 1
+
+
+def _apply_rename(client: ApiClient, source: dict, key: str) -> None:
+    """Save the name typed in the row, then close the editor."""
+    name = st.session_state.get(key, "").strip()
+    _open_editor(None)
+    if not name or name == source["name"]:
+        return  # nothing typed, or the same name: just close
+    try:
+        if source["kind"] == "index":
+            new = client.rename_library(name)["name"]
+        else:
+            new = client.rename_document(source["id"], name)["filename"]
+    except ApiError as exc:
+        flash("error", str(exc))
+        return
+    st.session_state.upload_report = None
+    flash("success", f"Renamed to {new}.")
+
+
+def _delete_source(client: ApiClient, source: dict) -> None:
+    try:
+        if source["kind"] == "index":
+            client.delete_library()
+        else:
+            client.delete_document(source["id"])
+    except ApiError as exc:
+        flash("error", str(exc))
+        return
+    finally:
+        _open_editor(None)
+    st.session_state.upload_report = None
+    flash("success", f"Deleted {source['name']}.")
+
+
+def _icon_button(bar, icon: str, key: str, hint: str,
+                 kind: str = "tertiary") -> bool:
+    """A small borderless icon, sitting in the row it belongs to."""
+    return bar.button("", icon=icon, type=kind, key=key, help=hint)
+
+
+def _confirm_delete(client: ApiClient, source: dict) -> None:
+    """Deleting is not undone by another click, so it is asked first."""
+    source_id = source["id"]
+    back = ("embedding its passages again "
+            "(`python -m src.vervemint.index`)" if source["kind"] == "index"
+            else "uploading the file again")
+    with st.sidebar.container(border=True):
+        st.caption(f"**Delete {source['name']}?** Getting it back means "
+                   f"{back}.")
+        row = st.container(horizontal=True)
+        if row.button("Delete", type="primary", key=f"yes_{source_id}"):
+            _delete_source(client, source)
+            st.rerun()
+        if row.button("Cancel", key=f"no_{source_id}"):
+            _open_editor(None)
+            st.rerun()
+
+
+def _rename_row(client: ApiClient, source: dict) -> None:
+    """The row becomes the name box: type over it and press Enter, or
+    the tick. A form, so leaving the box saves nothing by itself and
+    the cross really cancels."""
+    source_id = source["id"]
+    key = f"name_{source_id}_{st.session_state.edit_round}"
+    with st.sidebar.form(f"rename_{source_id}", border=False):
+        row = st.container(horizontal=True, vertical_alignment="center")
+        row.text_input("Name", value=source["name"], key=key, width="stretch",
+                       label_visibility="collapsed",
+                       help="Press Enter to save")
+        saved = row.form_submit_button("", icon=":material/check:",
+                                       type="primary", key=f"save_{source_id}",
+                                       help="Save")
+        cancelled = row.form_submit_button("", icon=":material/close:",
+                                           type="tertiary",
+                                           key=f"cancel_{source_id}",
+                                           help="Cancel")
+    if saved:
+        _apply_rename(client, source, key)
+        st.rerun()
+    if cancelled:
+        _open_editor(None)
+        st.rerun()
+
+
+def _source_row(client: ApiClient, source: dict, selected: list[str]) -> None:
+    """One line: a checkbox to search it, and a pen that turns into the
+    two things you can do to it."""
+    source_id = source["id"]
+    mode = (st.session_state.edit_mode
+            if st.session_state.editing == source_id else None)
+    if mode == EDIT_RENAME:  # the name is being typed over, in place
+        _rename_row(client, source)
+        return
+
+    # The server's list decides what is ticked, not a stale widget.
+    st.session_state[f"pick_{source_id}"] = source_id in selected
+    row = st.sidebar.container(horizontal=True, vertical_alignment="center")
+    row.checkbox(f"{source['name']} :gray[· {source['chunks']:,}]",
+                 key=f"pick_{source_id}", width="stretch",
+                 on_change=_on_pick, args=(source_id,),
+                 help=f"{source['chunks']:,} passages · added "
+                      f"{source['added_at'][:10]}")
+    if mode is None:
+        if _icon_button(row, ":material/edit:", f"pen_{source_id}",
+                        "Rename or delete"):
+            _open_editor(source_id)
+            st.rerun()
+        return
+
+    # The pen was pressed: it makes room for what it opens.
+    if _icon_button(row, ":material/drive_file_rename_outline:",
+                    f"rename_{source_id}", "Rename"):
+        _open_editor(source_id, EDIT_RENAME)
+        st.rerun()
+    if _icon_button(row, ":material/delete:", f"delete_{source_id}", "Delete"):
+        _open_editor(source_id, EDIT_DELETE)
+        st.rerun()
+    if _icon_button(row, ":material/close:", f"close_{source_id}", "Close"):
+        _open_editor(None)
+        st.rerun()
+    if mode == EDIT_DELETE:
+        _confirm_delete(client, source)
+
+
+def sidebar_sources(client: ApiClient) -> dict | None:
+    """Add files, then tick what to search. Everything listed is already
+    chunked and embedded: the built-in index and the stored documents.
+    Returns the search scope for /ask and /agent, or None."""
+    st.sidebar.subheader("Sources")
     files = st.sidebar.file_uploader(
         "Add PDF, TXT or MD files", type=["pdf", "txt", "md"],
         accept_multiple_files=True,
@@ -288,39 +445,32 @@ def sidebar_documents(client: ApiClient, health: dict) -> dict | None:
             st.sidebar.error(error)
 
     try:
-        docs = client.documents()
+        sources = _sources(client)
     except ApiError as exc:
         st.sidebar.error(str(exc))
         return None
-    if not docs:
-        st.sidebar.info("No documents yet. Add files above.")
+    if not sources:
+        st.sidebar.info("Nothing indexed yet. Add files above.")
         return None
 
-    labels = {d["doc_id"]: f"{d['filename']} ({d['chunks']} passages)"
-              for d in docs}
-    # Default to every document; drop ones that were deleted elsewhere.
-    st.session_state.selected_docs = [
-        d for d in st.session_state.get("selected_docs", list(labels))
-        if d in labels
-    ]
-    selected = st.sidebar.multiselect(
-        "Search these saved documents", list(labels),
-        format_func=labels.get, key="selected_docs",
-    )
-    with st.sidebar.expander("Delete a saved document"):
-        doomed = st.selectbox("Document", list(labels),
-                              format_func=labels.get)
-        if st.button("Delete", icon=":material/delete:"):
-            try:
-                client.delete_document(doomed)
-            except ApiError as exc:
-                st.error(str(exc))
-            else:
-                st.session_state.upload_report = None
-                st.rerun()
+    # Default to the documents, else the built-in index; drop anything
+    # that was deleted meanwhile.
+    ids = [s["id"] for s in sources]
+    documents = [s["id"] for s in sources if s["kind"] == "document"]
+    selected = [s for s in st.session_state.get("selected_sources",
+                                                documents or [LIBRARY_ID])
+                if s in ids]
+    st.session_state.selected_sources = selected
+
+    st.sidebar.caption("Search in")
+    for source in sources:
+        _source_row(client, source, selected)
+
     if not selected:
-        st.sidebar.info("Select at least one document to search.")
+        st.sidebar.info("Tick at least one source to search.")
         return None
+    if LIBRARY_ID in selected:  # _on_pick keeps it on its own
+        return {"scope": "library", "document_ids": []}
     return {"scope": "documents", "document_ids": selected}
 
 
@@ -434,12 +584,11 @@ def chat_page() -> None:
     show_flash()
     try:
         conf = client.get_settings()
-        health = client.health()
     except ApiError as exc:
         st.error(str(exc), icon=":material/cloud_off:")
         return
     llm = model_picker(conf)
-    scope = sidebar_documents(client, health)
+    scope = sidebar_sources(client)
     mode = sidebar_rest()
 
     for i, msg in enumerate(st.session_state.messages):
@@ -710,7 +859,8 @@ def main() -> None:
     for name, default in [("messages", []), ("pending_work_order", None),
                           ("upload_report", None), ("uploader_round", 0),
                           ("authenticated", False), ("flash", []),
-                          ("checks", {})]:
+                          ("checks", {}), ("editing", None),
+                          ("edit_mode", EDIT_MENU), ("edit_round", 0)]:
         st.session_state.setdefault(name, default)
 
     client = get_client()

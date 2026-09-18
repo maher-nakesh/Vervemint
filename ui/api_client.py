@@ -116,8 +116,23 @@ class ApiClient:
             files=[("files", (name, data)) for name, data in files],
         )
 
+    def rename_document(self, doc_id: str, name: str) -> dict:
+        """Returns the document's new metadata."""
+        return self._request("PATCH", f"/documents/{doc_id}",
+                             json={"name": name})
+
     def delete_document(self, doc_id: str) -> None:
         self._request("DELETE", f"/documents/{doc_id}")
+
+    def library(self) -> dict:
+        """The built-in index: name, passages, whether it is searchable."""
+        return self._request("GET", "/library")
+
+    def rename_library(self, name: str) -> dict:
+        return self._request("PATCH", "/library", json={"name": name})
+
+    def delete_library(self) -> None:
+        self._request("DELETE", "/library")
 
     def ask(self, llm: dict, question: str, scope: dict) -> dict:
         return self._request(

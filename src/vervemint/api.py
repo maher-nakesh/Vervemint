@@ -59,7 +59,13 @@ from src.vervemint.agent import (
     run_agent,
 )
 from src.vervemint.config import settings
-from src.vervemint.index import library_is_current
+from src.vervemint.index import (
+    delete_library,
+    library_is_current,
+    library_manifest,
+    library_name,
+    set_library_name,
+)
 from src.vervemint.ingest import SUPPORTED_UPLOAD_TYPES
 from src.vervemint.llm import (
     LLMConfig,
@@ -271,6 +277,20 @@ class UploadOut(BaseModel):
     errors: list[str]
 
 
+class NameIn(BaseModel):
+    """A new name for a stored document or for the library index."""
+    name: str = Field(min_length=1, max_length=200)
+
+
+class LibraryOut(BaseModel):
+    # The built-in index: one more thing the user can search, rename or
+    # delete, next to their own documents.
+    available: bool   # loaded and searchable now (scope "library")
+    name: str
+    chunks: int
+    built_at: str
+
+
 class SecretOut(BaseModel):
     # The saved value, so Settings can show and edit it; "" when not set.
     # The caller already holds the API token, so nothing is hidden here.
@@ -434,6 +454,28 @@ def _retriever(scope: str, document_ids: list[str]) -> Retriever:
     return retriever
 
 
+def _library_out() -> LibraryOut:
+    """The built-in index as the UI lists it. `available` is what /health
+    reports: an index built after this process started is only searchable
+    once the backend is restarted."""
+    manifest = library_manifest()
+    library = _state.get("library")
+    return LibraryOut(
+        available=library is not None,
+        name=library_name(),
+        chunks=library.size if library else manifest.get("n_chunks", 0),
+        built_at=manifest.get("built_at", ""),
+    )
+
+
+def _drop_retrievers(doc_id: str) -> None:
+    """Forget every cached retriever holding this document, after it was
+    renamed or deleted."""
+    with _cache_lock:
+        for key in [k for k in _doc_retrievers if doc_id in k]:
+            del _doc_retrievers[key]
+
+
 def _sources_and_pages(
     retriever: Retriever, sources: list[RetrievedChunk]
 ) -> tuple[list[SourceOut], dict[str, list[PageChunkOut]]]:
@@ -579,6 +621,22 @@ def upload_documents(files: list[UploadFile]) -> UploadOut:
     return UploadOut(documents=stored, errors=errors)
 
 
+@api.patch("/documents/{doc_id}", response_model=DocumentOut)
+def rename_document(doc_id: str, req: NameIn) -> DocumentOut:
+    """Rename a stored document. Only the name changes: its chunks and
+    vectors stay, so nothing is embedded again."""
+    try:
+        meta = doc_store.rename_document(doc_id, req.name)
+    except KeyError:
+        meta = None
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if meta is None:
+        raise HTTPException(404, "Unknown document.")
+    _drop_retrievers(doc_id)  # they carry the old name in their chunks
+    return DocumentOut(**meta)
+
+
 @api.delete("/documents/{doc_id}", status_code=204)
 def delete_document(doc_id: str) -> None:
     try:
@@ -587,9 +645,36 @@ def delete_document(doc_id: str) -> None:
         found = False
     if not found:
         raise HTTPException(404, "Unknown document.")
-    with _cache_lock:
-        for key in [k for k in _doc_retrievers if doc_id in k]:
-            del _doc_retrievers[key]
+    _drop_retrievers(doc_id)
+
+
+@api.get("/library", response_model=LibraryOut)
+def get_library() -> LibraryOut:
+    """The built-in index: how it is named and how big it is, so the web
+    UI can list it next to the user's own documents."""
+    return _library_out()
+
+
+@api.patch("/library", response_model=LibraryOut)
+def rename_library(req: NameIn) -> LibraryOut:
+    """Rename the built-in index. Only the label changes: its passages
+    and vectors stay untouched."""
+    try:
+        name = set_library_name(req.name)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if name is None:
+        raise HTTPException(404, "There is no library index.")
+    return _library_out()
+
+
+@api.delete("/library", status_code=204)
+def remove_library() -> None:
+    """Delete the built-in index from disk. It comes back with
+    `python -m src.vervemint.index`, which embeds the dataset again."""
+    if not delete_library():
+        raise HTTPException(404, "There is no library index.")
+    _state["library"] = None  # nothing left to search
 
 
 @api.post("/ask", response_model=AskOut)

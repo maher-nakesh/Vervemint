@@ -18,6 +18,8 @@ import argparse
 import hashlib
 import json
 import logging
+import re
+import shutil
 import threading
 from datetime import datetime, timezone
 
@@ -50,6 +52,19 @@ def release_gpu_cache() -> None:
 
 
 _INDEX_FILES = ("chunks.parquet", "bm25", "dense.faiss", "manifest.json")
+# A name a user types, for the library index or for a stored document.
+_BAD_NAME_RE = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
+_MAX_NAME_CHARS = 120
+
+
+def clean_name(name: str) -> str:
+    """Strip a typed name down to something safe to store and show: no
+    path parts, no control characters. Raises ValueError if nothing
+    usable is left."""
+    name = name.strip().strip(" .")
+    if not name or _BAD_NAME_RE.search(name):
+        raise ValueError(r'Use a name without / \ : * ? " < > |.')
+    return name[:_MAX_NAME_CHARS]
 
 
 def chunks_to_frame(chunks: list[Chunk]) -> pd.DataFrame:
@@ -118,6 +133,45 @@ def library_is_current() -> bool:
     return manifest.get("fingerprint") == library_fingerprint()
 
 
+def library_manifest() -> dict:
+    """What the last build recorded, or {} when there is no index."""
+    path = settings.index_dir / "manifest.json"
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text())
+
+
+def library_name() -> str:
+    """How the library index is listed: the name given in the UI, else
+    the dataset folder it was built from."""
+    return library_manifest().get("name") or settings.corpus_dir.name
+
+
+def set_library_name(name: str) -> str | None:
+    """Rename the library index. Only the label changes, so nothing is
+    rebuilt. Returns the stored name, or None when there is no index.
+    Raises ValueError for an unusable name."""
+    manifest = library_manifest()
+    if not manifest:
+        return None
+    manifest["name"] = clean_name(name)
+    (settings.index_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2)
+    )
+    logger.info("Library index renamed | %s", manifest["name"])
+    return manifest["name"]
+
+
+def delete_library() -> bool:
+    """Remove the library index from disk. It comes back with
+    `python -m src.vervemint.index`, which embeds the dataset again."""
+    if not settings.index_dir.exists():
+        return False
+    shutil.rmtree(settings.index_dir)
+    logger.info("Library index deleted from %s", settings.index_dir)
+    return True
+
+
 def build_all(force: bool = False) -> bool:
     """Index the built-in library. Returns False if it was already up to
     date and nothing was rebuilt."""
@@ -126,6 +180,7 @@ def build_all(force: bool = False) -> bool:
                     "(use --force to rebuild anyway)")
         return False
 
+    name = library_name()  # read before the manifest is overwritten
     chunks = build_chunks()
     df = chunks_to_frame(chunks)
     texts = df["text"].tolist()
@@ -149,6 +204,7 @@ def build_all(force: bool = False) -> bool:
         "embedding_model": settings.embedding_model,
         "chunker_version": CHUNKER_VERSION,
         "built_at": datetime.now(timezone.utc).isoformat(),
+        "name": name,  # a rebuild keeps the name it was given in the UI
     }
     (settings.index_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2)

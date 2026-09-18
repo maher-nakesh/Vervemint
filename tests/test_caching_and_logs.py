@@ -53,6 +53,23 @@ def test_changed_settings_trigger_reprocessing(store, monkeypatch):
     assert store.calls == 2
 
 
+def test_rename_keeps_the_chunks_and_vectors(store):
+    meta, _ = doc_store.add_document("manual.txt", MANUAL, store)
+    renamed = doc_store.rename_document(meta["doc_id"], "Pump manual")
+    assert renamed["filename"] == "Pump manual.txt"  # file type kept
+
+    chunks, vectors = doc_store.load_documents([meta["doc_id"]], store)
+    assert store.calls == 1  # nothing was embedded again
+    assert len(chunks) == len(vectors) == meta["chunks"]
+    assert set(chunks["source"]) == {"Pump manual.txt"}  # citations follow
+    assert chunks["chunk_id"].iloc[0] == "Pump manual_p1_c0"
+    assert doc_store.list_documents()[0]["filename"] == "Pump manual.txt"
+
+    with pytest.raises(ValueError):
+        doc_store.rename_document(meta["doc_id"], "../escape")
+    assert doc_store.rename_document("0" * 32, "gone.txt") is None
+
+
 def test_delete_and_unsafe_ids(store):
     meta, _ = doc_store.add_document("manual.txt", MANUAL, store)
     assert doc_store.delete_document(meta["doc_id"])

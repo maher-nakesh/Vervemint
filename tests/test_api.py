@@ -2,6 +2,7 @@
 LLM call is replaced by a canned answer so no model is needed)."""
 
 import asyncio
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,6 +28,22 @@ def client(tmp_path_factory):
             test_client.headers["Authorization"] = (
                 f"Bearer {credentials.api_token()}")
             yield test_client
+
+
+@pytest.fixture
+def temp_library(tmp_path, monkeypatch):
+    """A throw-away index folder: a rename or a delete in a test must
+    never reach the real data/index. The loaded index is put back, so
+    the tests after this one can still search the library."""
+    index_dir = tmp_path / "index"
+    index_dir.mkdir()
+    (index_dir / "manifest.json").write_text(json.dumps({
+        "fingerprint": "abc123", "n_chunks": 3,
+        "built_at": "2026-09-14T13:13:18+00:00"}))
+    monkeypatch.setattr(settings, "index_dir", index_dir)
+    loaded = api_module._state["library"]
+    yield index_dir
+    api_module._state["library"] = loaded
 
 
 @pytest.fixture
@@ -224,3 +241,51 @@ def test_log_analysis_endpoint(client, monkeypatch):
     assert body["citations"] and body["pages"]
     # One id across the access log, pipeline log, llm.log and trace.
     assert body["request_id"] == response.headers["X-Request-ID"]
+
+
+def test_document_can_be_renamed(client, docs_dir, monkeypatch):
+    """Renaming keeps the stored chunks and vectors; answers made after
+    it cite the new name, so no cached retriever keeps the old one."""
+    monkeypatch.setattr("src.vervemint.generate.chat",
+                        lambda *args: "Check the cooling fan [S1].")
+    doc_id = client.post("/documents", files=[
+        ("files", ("manual.txt", MANUAL))]).json()["documents"][0]["doc_id"]
+
+    def citations() -> list[str]:
+        return client.post("/ask", json={
+            "question": "What should I check if the motor overheats?",
+            "scope": "documents", "document_ids": [doc_id],
+        }).json()["citations"]
+
+    assert citations() == ["manual.txt#p1"]  # caches a retriever
+    body = client.patch(f"/documents/{doc_id}",
+                        json={"name": "Pump manual"}).json()
+    assert body["filename"] == "Pump manual.txt"  # the file type is kept
+    assert body["chunks"] == client.get("/documents").json()[0]["chunks"]
+    assert citations() == ["Pump manual.txt#p1"]
+
+    assert client.patch(f"/documents/{doc_id}",
+                        json={"name": "../etc"}).status_code == 400
+    assert client.patch("/documents/" + "0" * 32,
+                        json={"name": "x.txt"}).status_code == 404
+
+
+def test_library_is_listed_renamed_and_deleted(client, temp_library):
+    """The built-in index is one more source the UI can show, rename and
+    remove, next to the user's own documents."""
+    body = client.get("/library").json()
+    assert body["available"]  # loaded, so it can be searched
+    assert body["name"] == settings.corpus_dir.name  # until it is renamed
+    assert body["built_at"] == "2026-09-14T13:13:18+00:00"
+
+    named = client.patch("/library", json={"name": "Panasonic manuals"})
+    assert named.json()["name"] == "Panasonic manuals"
+    manifest = json.loads((temp_library / "manifest.json").read_text())
+    assert manifest["name"] == "Panasonic manuals"
+    assert manifest["fingerprint"] == "abc123"  # a rename rebuilds nothing
+    assert client.patch("/library", json={"name": "a/b"}).status_code == 400
+
+    assert client.delete("/library").status_code == 204
+    assert not temp_library.exists()
+    assert client.get("/library").json()["available"] is False
+    assert client.delete("/library").status_code == 404
