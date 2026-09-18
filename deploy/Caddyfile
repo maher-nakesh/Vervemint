@@ -1,0 +1,28 @@
+# HTTPS in front of the Vervemint web UI (docker compose profile "proxy").
+# Caddy gets and renews a Let's Encrypt certificate for DOMAIN on its own:
+# the DNS record must point at this server, and ports 80 and 443 must be open.
+#
+# There is no login here. On a public domain, turn the web UI's own
+# password on (VERVEMINT_UI_REQUIRE_PASSWORD=true for the ui service) and
+# read or change it in Settings; changing it needs no proxy reload.
+# The API is not exposed: the UI and the bot reach it inside Docker.
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Streamlit needs websockets; Caddy proxies them as they are.
+	reverse_proxy ui:8501
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

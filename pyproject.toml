@@ -1,0 +1,25 @@
+[project]
+name = "vervemint"
+version = "1.0.0"
+description = "Cited answers from your technical documents, with page-level sources."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+dynamic = ["dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/maher-nakesh/Vervemint"
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+# The code is written to 79 columns; `ruff format` is deliberately not
+# enforced, so existing formatting is left as it is.
+line-length = 79

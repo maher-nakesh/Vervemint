@@ -1,5 +1,7 @@
 # Vervemint - AI that mint-answers from your docs
 
+[![CI](https://github.com/maher-nakesh/Vervemint/actions/workflows/ci.yml/badge.svg)](https://github.com/maher-nakesh/Vervemint/actions/workflows/ci.yml)
+
 
 Ask about your technical documents and get answers with page-level citations — in a web app or on Telegram. 
 
@@ -9,7 +11,7 @@ Ask about your technical documents and get answers with page-level citations —
 - **Honest refusals.** Weak evidence means no answer, not a plausible one.
 - **Log diagnosis.** Attach a `.log`, `.csv` or `.txt` from a machine and get a diagnosis based on the manuals.
 - **Maintenance agent.** Checks machine telemetry, searches the manuals, and drafts a work order — created only after you approve it.
-- **Your own documents.** Upload PDF, TXT or MD files and ask about those instead of the built-in library.
+- **Your own documents.** Upload PDF, TXT or MD files; each one is chunked and embedded once, then kept. The sidebar lists everything already indexed — the built-in manual index and your own documents — to pick, rename or delete.
 - **Any model.** Ollama (local, no key) or Gemini, Claude, OpenAI. Switch in the sidebar at any time.
 - **Telegram.** The same assistant in a chat, for people who never open the web app.
 
@@ -53,9 +55,22 @@ Only allowed users can use it, in private chats only. Clearing the token disconn
 
 ## Run with Docker
 
+The image carries the models, but not the library index: build it on the
+host first (once), because the stack mounts `data/index` read-only.
+
 ```bash
+python -c "from huggingface_hub import snapshot_download; snapshot_download('Parssky/industrial-instruction-dataset', repo_type='dataset', local_dir='data/industrial-instruction-dataset')"
+python -m src.vervemint.index
+
 docker compose up -d --build
 ```
+
+Skipping it still starts a working stack — you just get no built-in
+manuals until you upload your own documents.
+
+HTTPS on your own domain: set `DOMAIN` and `COMPOSE_PROFILES=proxy` in
+`.env` (see [.env.example](.env.example)); Caddy is configured in
+[deploy/Caddyfile](deploy/Caddyfile).
 
 
 
@@ -80,7 +95,7 @@ curl -X POST http://127.0.0.1:8000/ask -H "Authorization: Bearer $TOKEN" \
 ```
 
 Interactive docs: 
-<http://127.0.0.1:8000/docs>. Endpoints: `GET /health` (public), `POST /ask`, `POST /agent`, `POST /analyze-log`, `POST /connect`, `GET|POST /documents`, `DELETE /documents/{id}`, `GET|PUT /settings`, `GET /telegram/status`, `POST /work-orders`, `GET /stats`. Everything except `/health` needs the token. Leave out `provider` / `model` to use the ones chosen in the sidebar.
+<http://127.0.0.1:8000/docs>. Endpoints: `GET /health` (public), `POST /ask`, `POST /agent`, `POST /analyze-log`, `POST /connect`, `GET|POST /documents`, `PATCH /documents/{id}` (rename), `DELETE /documents/{id}`, `GET|PATCH|DELETE /library`, `GET|PUT /settings`, `GET /telegram/status`, `POST /work-orders`, `GET /stats`. Everything except `/health` needs the token. Leave out `provider` / `model` to use the ones chosen in the sidebar.
 
 
 ## Evaluation
@@ -98,7 +113,7 @@ Interactive docs:
 ```bash
 python -m evaluation.eval_retrieval        # retrieval metrics, no LLM calls
 python -m evaluation.eval_answers --n 50   # answer accuracy
-python -m pytest tests                     # 76 tests, no LLM calls
+python -m pytest tests                     # 90 tests, no LLM calls
 ```
 
 ## Logs

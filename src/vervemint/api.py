@@ -50,7 +50,7 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
-from src.vervemint import bot_status, credentials, doc_store
+from src.vervemint import __version__, bot_status, credentials, doc_store
 from src.vervemint.agent import (
     PRIORITIES,
     SIMULATED_ASSETS,
@@ -138,7 +138,8 @@ async def lifespan(app: FastAPI):
     _doc_retrievers.clear()
 
 
-app = FastAPI(title="Vervemint API", lifespan=lifespan)
+app = FastAPI(title="Vervemint API", version=__version__,
+              lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -501,6 +502,7 @@ def health() -> dict[str, Any]:
     library = _state.get("library")
     return {
         "status": "ok",
+        "version": __version__,
         "library": {"available": library is not None,
                     "chunks": library.size if library else 0},
         "auth_required": True,
